@@ -1,0 +1,178 @@
+name: Terraform Deploy Infra
+
+on: 
+  workflow_run:
+    workflows: ["Build and Push Docker Image"]
+    types: 
+      - completed
+    branches: [ main ]
+  
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deploymnet environment'
+        required: true
+        default: 'production'
+        type: choice
+        options: 
+          - production
+          - staging 
+
+env:
+  WS_REGION: ${{ secrets.AWS_REGION }}
+  TF_VERSION: "1.6.0"         
+
+jobs: 
+  terraform-validate:
+    name: Validate Terraform Code
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+
+    permissions: 
+      id-token: write
+      contents: read
+
+    steps: 
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:  
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Format Check
+        id: fmt 
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Terraform Init (for validation)
+        run: |
+          cd ./infra 
+          terraform init -backend=false
+      
+      - name: Terraform Validate
+        id: validate
+        run: |
+          cd ./infra 
+          terraform validate -no-color
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with: 
+          tflint_version: latest
+
+      - name: Run TFLint
+        run: |
+          cd ./infra
+          tflint --init
+          tflint --format compact
+        continue-on-error: true
+
+  terraform-plan:
+    name: Terraform Plan 
+    runs-on: ubuntu-latest
+    needs: terraform-validate
+
+    permissions:
+      id-token: write
+      contents: read
+      pull_request: write
+
+    steps: 
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with: 
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }} 
+          aws-region: ${{ env.AWS_REGION }}
+          role-duration-seconds: 3600
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }} 
+
+      - name: Terraform Init
+        id: init
+        run: |
+          cd ./infra
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="key=threat-composer/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}"      
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          cd ./infra
+
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with: 
+          name: terraform-plan
+          path: infra/tfplan
+
+  terraform-apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: terraform-plan   
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+
+    environment: 
+      name: ${{ github.event.inputs.environment || 'production' }}
+      url: https://tm.${{ secrets.DOMAIN_NAME }}
+
+      permissions:
+        id-token: write
+        contents: read
+      
+      steps: 
+        - name: Checkout code 
+          uses: actions/checkout@v4
+        
+        - name: Configure AWS credentials
+          uses: aws-actions/configure-aws-credentials@v4
+          with: 
+            role-to-assume: ${{ secrets.AWS_ROLE_ARN }} 
+            aws-region: ${{ env.AWS_REGION }}
+            role-duration-seconds: 3600
+
+        - name: Setup Terraform
+          uses: hashicorp/setup-terraform@v3
+          with:
+            terraform_version: ${{ env.TF_VERSION }} 
+
+        - name: Terraform Init
+          id: init
+          run: |
+            cd ./infra
+            terraform init \
+              -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+              -backend-config="key=threat-composer/terraform.tfstate" \
+              -backend-config="region=${{ env.AWS_REGION }}"  
+
+        - name: Download Terraform Plan
+          uses: actions/download-artifact@v4
+          with: 
+            name: terraform-plan
+            path: infra/tfplan
+
+        - name: Terraform Apply
+          id: apply
+          run: |
+            cd ./infra
+            terraform apply -auto-approve tfplan
+
+        - name: Get Terraform outputs
+          id: outputs
+          run: |
+            cd ./infra
+            ALB_DNS=$(terraform output -raw alb_dns_name)
+            DOMAIN=$(terraform output -raw domain_name)
+      
+      outputs: 
+        alb_dns: ${{ steps.outputs.outputs.alb_dns }}
+        domain: ${{ steps.outputs.outputs.domain }}      

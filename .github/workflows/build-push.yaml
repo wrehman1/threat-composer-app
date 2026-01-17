@@ -1,0 +1,111 @@
+name: Build and Push Docker Image
+
+on:
+
+  push:
+    branches [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+  workflow_dispatch: 
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+
+jobs: 
+  build-and-push:
+    name: Build Docker Image and Push Image to ECR_REPOSITORY
+
+    runs-on: ubuntu-latest
+
+    permissions: 
+      id-token: write
+      contents: read
+
+    outputs: 
+      image-tag: ${{ steps.image-info.outputs.tag }}
+      image-uri: ${{ steps.image-info.outputs.uri }}
+
+    steps: 
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with: 
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+          role-duration-seconds: 3600
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract Docker metadeta
+        id: meta
+        uses: docker/metadeta-action@v5
+        with: 
+          images: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+          tags: 
+            type=sha,prefix=,sufffix=,format=short
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+      
+      - name: Build and push Docker image
+        id: build-image
+        uses: docker/build-push-action@v5
+        with: 
+          context: 
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF={{ github.sha }}
+
+      - name: Output image information
+        id: image-info
+        run: |
+          IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | grep -o '[a-f0-9]\{7\}' | head -1)
+          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${IMAGE_TAG}"
+          
+          echo "tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "uri=${IMAGE_URI}" >> $GITHUB_OUTPUT
+
+          echo "Docker Image Built Successfully!! ✅"
+          echo "" > $GITHUB_STEP_SUMMARY
+          echo "**Image URI:** \`${IMAGE_URI}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** \`${IMAGE_TAG}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** ${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_STEP_SUMMARY
+
+
+      - name: Scan Docker image for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.image-info.outputs.uri }}
+          format: 'sarif'
+          output: 'trivy-result.sarif'
+        continue-on-error: true 
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with: 
+          sarif_file: 'trivy-results.sarif'
+        continue-on-error: true
+
+
+
+
+
+    
+
+      

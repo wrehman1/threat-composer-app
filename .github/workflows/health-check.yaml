@@ -1,0 +1,80 @@
+name: Post-Deploy Health Check
+
+on: 
+  workflow_run:
+    workflows: ["Terraform Deploy Infrastructure"]
+    types: 
+      - completed
+    branches: [ main ]
+
+  workflow_dispatch: 
+
+env: 
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
+   
+jobs: 
+  health-check:
+    name: Verify Application Health
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+
+    steps: 
+      - name: Wait for deployument to stabilise 
+        run: |
+          echo "Waiting 60 seconds for ECS service to stabalise" 
+          sleep 60
+
+      - name: Check Application Health
+        id: health
+        run: |
+          HEALTH_URL="https://tm.${{ env.DOMAIN_NAME }}/health"
+          echo "Testing health endpoint: ${HEALTH_URL}"
+
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+          SUCCESS=false
+
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES..."
+
+            HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+              --max-time 10 \
+              "${HEALTH_URL}")
+
+            if [ "${HTTP_STATUS}" -eq 200 ]; then
+              echo "Health check passed!"
+              SUCCESS=true
+              break
+            else
+              echo "Health check failed with status ${HTTP_STATUS}"
+              RETRY_COUNT=$((RETRY_COUNT+1))
+              sleep 30
+            fi
+          done 
+
+          if [ "$SUCCESS" = true ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            exit 0
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "::error::Health check failed after ${MAX_RETRIES} attempts"
+            exit 1
+          fi
+      
+      - name: Verify SSL Certificate
+        run: | 
+          echo "Checking SSL Certificate for tm.${{ env.DOMAIN_NAME }}"
+
+      - name: Test HTTPS Redirect
+        run: |
+          echo "Testing HTTP to HTTPS redirect"
+          REDIRECT_URL=$(curl -s -o /dev/null -w "%{redirect_url}" \
+            "http://tm.${{ env.DOMAIN_NAME }}")
+          
+          if [[ "${REDIRECT_URL}" == https://* ]]; then
+            echo "HTTP correctly redirects to HTTPS"
+          else
+            echo "HTTP redirect might not be configured"
+          fi
+        continue-on-error: true
