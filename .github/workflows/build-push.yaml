@@ -48,7 +48,7 @@ jobs:
         id: build-image
         run: |
           cd app
-          docker build -t threatcomp .
+          docker buildx -t threatcomp .
           docker tag threatcomp:latest ${{ secrets.DOCKER_IMAGE }}
         
     
