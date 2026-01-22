@@ -21,7 +21,11 @@ on:
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
-  TF_VERSION: "1.6.0"         
+  TF_VERSION: "1.6.0"   
+
+defaults: 
+  run: 
+    working-directory: infra     
 
 jobs: 
   terraform-validate:
@@ -48,15 +52,14 @@ jobs:
         continue-on-error: true
 
       - name: Terraform Init (for validation)
-        run: |
-          cd ./infra 
-          terraform init -backend=false
+        run: terraform init
+          
+          
       
       - name: Terraform Validate
         id: validate
-        run: |
-          cd ./infra 
-          terraform validate -no-color
+        run: terraform validate -no-color
+          
 
       - name: Setup TFLint
         uses: terraform-linters/setup-tflint@v4
@@ -65,10 +68,10 @@ jobs:
 
       - name: Run TFLint
         run: |
-          cd ./infra
           tflint --init
           tflint --format compact
         continue-on-error: true
+          
 
   terraform-plan:
     name: Terraform Plan 
@@ -97,18 +100,14 @@ jobs:
 
       - name: Terraform Init
         id: init
-        run: |
-          cd ./infra
-          terraform init \
-            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
-            -backend-config="key=threat-composer/terraform.tfstate" \
-            -backend-config="region=${{ env.AWS_REGION }}"      
+        run: terraform init 
+          
+               
 
       - name: Terraform Plan
         id: plan
-        run: |
-          cd ./infra
-          terraform plan -out=tfplan -no-color
+        run: terraform plan
+           
 
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
@@ -149,12 +148,9 @@ jobs:
 
         - name: Terraform Init
           id: init
-          run: |
-            cd ./infra
-            terraform init \
-              -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
-              -backend-config="key=threat-composer/terraform.tfstate" \
-              -backend-config="region=${{ env.AWS_REGION }}"  
+          run: terraform init
+             
+              
 
         - name: Download Terraform Plan
           uses: actions/download-artifact@v4
@@ -164,14 +160,12 @@ jobs:
 
         - name: Terraform Apply
           id: apply
-          run: |
-            cd ./infra
-            terraform apply -auto-approve tfplan
+          run: terraform apply --auto-approve
+            
 
         - name: Get Terraform outputs
           id: outputs
           run: |
-            cd ./infra
             echo "alb_dns=$(terraform output -raw alb_dns_name)" >> $GITHUB_OUTPUT
             echo "domain=$(terraform output -raw app_fqdn)" >> $GITHUB_OUTPUT
 
