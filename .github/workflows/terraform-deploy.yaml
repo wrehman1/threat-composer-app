@@ -2,13 +2,12 @@ name: Terraform Deploy Infra
 
 on:
   push:
-    
+    branches: [main]
   workflow_run:
     workflows: ["Build and Push Docker Image"]
     types:
       - completed
     branches: [main]
-  
   workflow_dispatch:
     inputs:
       environment:
@@ -123,13 +122,14 @@ jobs:
     needs: terraform-plan   
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
 
-  environment: 
-    name: production
-    url: https://tm.mwaqar.co.uk
+    environment: 
+      name: production
+      url: https://tm.mwaqar.co.uk
+    environment: production
 
-  permissions:
-    id-token: write
-    contents: read
+    permissions:
+      id-token: write
+      contents: read
       
     steps: 
         - name: Checkout code 
@@ -177,4 +177,4 @@ jobs:
 
     outputs:
       alb_dns: threatcomp-alb
-      domain: tm.mwaqar.co.uk       
+      domain: https://tm.mwaqar.co.uk     
