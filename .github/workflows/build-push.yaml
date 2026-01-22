@@ -56,7 +56,7 @@ jobs:
         uses: aquasecurity/trivy-action@0.28.0
         continue-on-error: true
         with:
-        image-ref: ${{ secrets.DOCKER_IMAGE }}
+          image-ref: ${{ secrets.DOCKER_IMAGE }}
 
       - name: Push to Amazon ECR
         run: |
