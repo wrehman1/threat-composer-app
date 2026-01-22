@@ -125,7 +125,7 @@ jobs:
     environment: 
       name: production
       url: https://tm.mwaqar.co.uk
-    environment: production
+    
 
     permissions:
       id-token: write
