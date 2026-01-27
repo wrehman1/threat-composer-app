@@ -3,6 +3,7 @@ name: Terraform Deploy Infra
 on:
   push:
     branches: [main]
+    path: [./infra/**]
   workflow_run:
     workflows: ["Build and Push Docker Image"]
     types:
