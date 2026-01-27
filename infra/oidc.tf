@@ -20,7 +20,11 @@ resource "aws_iam_role" "github_actions" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:wrehman1/threat-composer-app:ref:refs/heads/main"
+              "token.actions.githubusercontent.com:sub" = [
+              "repo:wrehman1/threat-composer-app:ref:refs/heads/main",
+              "repo:wrehman1/threat-composer-app:environment:production"
+            ]
+          
           }
         }
       }
