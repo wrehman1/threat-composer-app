@@ -58,6 +58,17 @@ resource "aws_iam_role_policy" "github_actions_custom" {
         ]
       },
       {
+          "Effect": "Allow",
+          "Action": [
+          "dynamodb:PutItem",
+          "dynamodb:GetItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:DescribeTable"
+        ],
+        Resource: "arn:aws:dynamodb:***:654654435288:table/threatcomp-tfstate-lock"
+      },
+      {
         Effect = "Allow"
         Action = [
           "ec2:*",
