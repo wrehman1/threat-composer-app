@@ -22,14 +22,15 @@ The application runs inside private subnets, ensuring that core services are iso
 
 Infrastructure is fully automated with Terraform and GitHub Actions, enabling repeatable, versioned deployments using Infrastructure as Code (IaC). Docker images are built and pushed to Amazon ECR, then deployed securely through CI/CD pipelines. IAM policies follow least-privilege principles, and the system is modular, scalable, and fault-tolerant by design.
 
-## Repository Structure:
+
+## Repository Structure:
 
 <div align="center">
     <img src="./images/repo-structure.png" alt="Diagram" width="600"/>
 </div>
 
 
-## Architechture Diagram: 
+## Architechture Diagram: 
 
 <div align="center">
     <img src="./images/architecture-diagram.png" alt="Diagram" width="600"/>
@@ -101,7 +102,7 @@ serve -s build
     <img src="./images/dockerfile.png" alt="Diagram" width="600"/>
 </div>
 
-Dockerfile Breakdown: 
+### Dockerfile Breakdown: 
 
 - Stage 1 - Build Stage
 1. **FROM node:22-alpine AS builder** : indicates that it is a node.js and a smaller Alpine image Linux base. 
