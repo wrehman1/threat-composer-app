@@ -24,12 +24,16 @@ Infrastructure is fully automated with Terraform and GitHub Actions, enabling re
 
 ## Repository Structure:
 
-![image.png](attachment:e4dc467b-a2bd-44e0-90b2-512a5fcd74b2:6e57323a-0a70-4357-a790-c6bc78423d1a.png)
+<div align="center">
+    <img src="./images/repo-structure.png" alt="Diagram" width="600"/>
+</div>
 
 
 ## Architechture Diagram: 
 
-![image.png](attachment:3e495e23-6f76-401d-a846-57c489773f26:image.png)
+<div align="center">
+    <img src="./images/architecture-diagram.png" alt="Diagram" width="600"/>
+</div>
 
 Key components:
 -	VPC with public and private subnets across multiple Availability Zones (AZ)
@@ -52,7 +56,10 @@ Key Features:
 
 ## URL: https://tm.mwaqar.co.uk
 
-![image.png](attachment:a7c9bb72-da51-4ae3-979c-bc90f6dddb5c:image.png)
+<div align="center">
+    <img src="./images/threatcomposerui.png" alt="Diagram" width="600"/>
+</div>
+
 
 ## Reproduction Steps: 
 
@@ -61,8 +68,9 @@ Key Features:
 - AWS account
 - Terraform
 - Docker
-- GitHub repository
+- GitHub account and a new repository
 - Domain managed via Route 53 and/or Cloudflare
+
 
 ### Step 1: Local Setup:
 ```bash
@@ -80,13 +88,18 @@ serve -s build
 ```
 - Exposed a simple route like /health returning {"status": "ok"}
 
-![image.png](attachment:60661c8a-1bd5-4eb6-8386-ede18c3caff0:image.png)
+<div align="center">
+    <img src="./images/health-validation.png" alt="Diagram" width="600"/>
+</div>
+
 
 ### Step 2: Containerisation
 
-- Created Dockerfile for the threat composer app. original image was 2.88GB so used multi-stage to make it smaller. Final image was reduced to 332MB. 
+- Created a Dockerfile for the threat composer app. original image was 2.88GB so used multi-stage to make it smaller. Final image was reduced to 332MB. 
 
-![image.png](attachment:ecdf9936-5de5-4a9c-b704-de7de5d3fdc8:image.png)
+<div align="center">
+    <img src="./images/dockerfile.png" alt="Diagram" width="600"/>
+</div>
 
 Dockerfile Breakdown: 
 
@@ -107,25 +120,35 @@ Dockerfile Breakdown:
 7. **CMD ["serve", "-s", "build", "-l", "3000"]** : starts the server when the container runs.
 
 - Build the image : “docker build -t threatcomp . “
-![image.png](attachment:d7dd0bfa-70c5-49b9-bdfe-524fefe980b9:image.png)
+<div align="center">
+    <img src="./images/docker-build.png" alt="Diagram" width="600"/>
+</div>
 
 - Run command: “ docker run -p 3000:3000 threatcomp “
 
 - On web browser open: [http://localhost:](http://localhost:3000)3000 and the app will load up: 
 
-![image.png](attachment:8e88f40f-3af2-454a-8c09-65ebf60e8088:image.png)
+<div align="center">
+    <img src="./images/localhost-ui.png" alt="Diagram" width="600"/>
+</div>
 
 - Run command “curl [http://localhost](http://localhost):80/health” and it should display this html message on terminal: 
 
-![image.png](attachment:d8c8056e-6ea8-45a6-bede-dba1dfba037c:image.png)
+<div align="center">
+    <img src="./images/html-link.png" alt="Diagram" width="600"/>
+</div>
 
-- Click on the html link in the terminal and it should redirect to the app web UI. 
+
+- Once the link is clicked, it will create a html link in the terminal which redirects the user to the app UI. 
+
 
 ### Step 3: Image Registery (ECR)
 
 Docker image has been pushed to AWS ECR. 
 
-![image.png](attachment:302047e9-9184-4170-9233-e9cbd4ad4452:image.png)
+<div align="center">
+    <img src="./images/image-ecr.png" alt="Diagram" width="600"/>
+</div>
 
 - The main parts of the infrastructure were first created manually using the AWS console in order to understand how the services fit together.
 
@@ -141,7 +164,7 @@ Once the application was reachable via HTTPS, all manual resources were deleted.
 
 ### Step 5: IaC (Terraform)
 
-Created the the setup using modular Terraform.
+Created the the setup using modular Terraform. The code can be found in the "infra" folder inside this repository. 
 
 - Iniitialised Terraform in the directory:
 ```bash
@@ -163,18 +186,26 @@ terraform destroy
 Implemented Github Actions for the workflows.
 
 ### Build and Push 
-![alt text](image.png)
+<div align="center">
+    <img src="./images/build-push.png" alt="Diagram" width="600"/>
+</div>
 
 ### Terraform Deploy
-![image.png](attachment:9d625e85-3844-41b1-908b-b447939233de:image.png)
+<div align="center">
+    <img src="./images/terraform-deploy.png" alt="Diagram" width="600"/>
+</div>
 
 ### Health Check 
-![image.png](attachment:0b413308-3225-4ecd-9395-c44dc19716e2:image.png)
+<div align="center">
+    <img src="./images/postdeploy-health.png" alt="Diagram" width="600"/>
+</div>
 
 
 The end result should be: 
 
-![image.png](attachment:a7c9bb72-da51-4ae3-979c-bc90f6dddb5c:image.png)
+<div align="center">
+    <img src="./images/threatcompui.png" alt="Diagram" width="600"/>
+</div>
 
 
 ## Future Improvements:
