@@ -25,42 +25,21 @@ jobs:
           echo "Waiting 60 seconds for ECS service to stabalise" 
           sleep 60
 
-      - name: Check Application Health
-        id: health
-        run: |
-          HEALTH_URL="https://tm.${{ env.DOMAIN_NAME }}/health"
-          echo "Testing health endpoint: ${HEALTH_URL}"
-
-          MAX_RETRIES=5
-          RETRY_COUNT=0
-          SUCCESS=false
-
-          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            echo "Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES..."
-
-            HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
-              --max-time 10 \
-              "${HEALTH_URL}")
-
-            if [ "${HTTP_STATUS}" -eq 200 ]; then
-              echo "Health check passed!"
-              SUCCESS=true
-              break
-            else
-              echo "Health check failed with status ${HTTP_STATUS}"
-              RETRY_COUNT=$((RETRY_COUNT+1))
-              sleep 30
-            fi
-          done 
-
-          if [ "$SUCCESS" = true ]; then
-            echo "status=success" >> $GITHUB_OUTPUT
-            exit 0
-          else
-            echo "status=failure" >> $GITHUB_OUTPUT
-            echo "::error::Health check failed after ${MAX_RETRIES} attempts"
-            exit 1
-          fi
+      - name: Check the deployed service URL
+        uses: jtalk/url-health-check-action@v4
+        with:
+      # Check the following URLs one by one sequentially
+          url: https://tm.mwaqar.co.uk/health
+      # Follow redirects, or just report success on 3xx status codes
+          follow-redirect: false # Optional, defaults to "false"
+      # Fail this action after this many failed attempts
+          max-attempts: 3 # Optional, defaults to 1
+      # Delay between retries
+          retry-delay: 5s # Optional, only applicable to max-attempts > 1
+      # Retry all errors, including 404. This option might trigger curl upgrade.
+          retry-all: false # Optional, defaults to "false"
+      
+        
       
       - name: Verify SSL Certificate
         run: | 
